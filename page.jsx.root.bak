@@ -1,0 +1,25 @@
+import { SEO_REVALIDATE_SECONDS } from "@/lib/constants";
+import { redirect } from "next/navigation";
+
+const getDefaultLanguageCode = async () => {
+    try {
+        const res = await fetch(
+            `${process.env.NEXT_PUBLIC_API_URL}${process.env.NEXT_PUBLIC_END_POINT}get-system-languages-codes`,
+            {
+                next: {
+                    revalidate: SEO_REVALIDATE_SECONDS,
+                },
+            }
+        );
+        const data = await res.json();
+        return data.data.default_language_code || 'en';
+    } catch (error) {
+        console.log("error", error);
+        return 'en';
+    }
+};
+
+export default async function Page() {
+    const defaultLanguageCode = await getDefaultLanguageCode();
+    redirect(`/${defaultLanguageCode}`);
+}
