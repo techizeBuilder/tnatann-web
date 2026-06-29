@@ -13,6 +13,7 @@ app.prepare().then(() => {
     const { pathname, query } = parsedUrl;
     if (pathname.startsWith('/.well-known')) {
       const filePath = path.join(process.cwd(), pathname.substring(1));
+
       try {
         const fileContent = fs.readFileSync(filePath, 'utf-8');
         res.writeHead(200, { 'Content-Type': 'application/json' });
@@ -25,6 +26,7 @@ app.prepare().then(() => {
         return;
       }
     }
+//const filepath= path.json('null');
     handle(req, res, parsedUrl);
   }).listen(port, (err) => {
     if (err) throw err;

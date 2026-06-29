@@ -9,11 +9,13 @@ import locationReducer from '../reducer/locationSlice';
 import globalStateReducer from '../reducer/globalStateSlice';
 import authReducer from '../reducer/authSlice'
 
+
 const persistConfig = {
   key: 'root',
   storage,
   manualPersisting: true,
 };
+
 
 
 const rootReducer = combineReducers({
