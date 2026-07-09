@@ -53,66 +53,75 @@ const AdCard = ({ item, handleLike }) => {
   return (
     <CustomLink
       href={productLink}
-      className="border p-2 rounded-2xl flex flex-col gap-2 h-full"
+      className={`border rounded-lg flex flex-col h-full overflow-hidden bg-card transition-shadow hover:shadow-md ${
+        item?.is_feature
+          ? "ltr:border-l-4 rtl:border-r-4 ltr:border-l-amber-400 rtl:border-r-amber-400"
+          : ""
+      }`}
     >
-      <div className="relative">
+      <div className="relative p-2 pb-0">
         <CustomImage
           src={item?.image}
           width={288}
-          height={249}
-          className="w-full aspect-square rounded object-cover"
+          height={216}
+          className="w-full aspect-[4/3] rounded object-cover"
           alt={translated_item?.name || "Product"}
         />
         {item?.is_feature && (
-          <div className="flex items-center gap-1 ltr:rounded-tl rtl:rounded-tr py-0.5 px-1 bg-primary absolute top-0 ltr:left-0 rtl:right-0">
-            <BiBadgeCheck size={16} color="white" />
-            <p className="text-white text-xs sm:text-sm">{t("featured")}</p>
+          <div className="flex items-center gap-1 rounded-sm py-0.5 px-1.5 bg-amber-400 absolute bottom-0 ltr:left-2 rtl:right-2">
+            <BiBadgeCheck size={14} className="text-black" />
+            <p className="text-black text-[10px] font-bold uppercase tracking-wide">
+              {t("featured")}
+            </p>
           </div>
         )}
 
         <div
           onClick={handleLikeItem}
-          className="absolute size-6 sm:size-9 ltr:right-2 rtl:left-2 top-2 bg-white rounded-full flex items-center justify-center text-primary"
+          className="absolute size-7 sm:size-9 ltr:right-4 rtl:left-4 top-4 bg-white rounded-full flex items-center justify-center text-primary shadow-sm"
         >
           {item?.is_liked ? (
             <button>
-              <FaHeart className="size-4 sm:size-6" />
+              <FaHeart className="size-4 sm:size-5" />
             </button>
           ) : (
             <button>
-              <FaRegHeart className="size-4 sm:size-6" />
+              <FaRegHeart className="size-4 sm:size-5" />
             </button>
           )}
         </div>
       </div>
 
-      <div className="space-between gap-2">
-        {isHidePrice ? (
-          <p className="text-sm sm:text-base font-medium line-clamp-1">
-            {translated_item?.name}
+      <div className="flex flex-col flex-1 gap-1.5 p-3 pt-2.5">
+        <div className="space-between gap-2">
+          {isHidePrice ? (
+            <p className="text-base sm:text-lg font-bold line-clamp-1">
+              {translated_item?.name}
+            </p>
+          ) : (
+            <p
+              className="text-base sm:text-xl font-bold break-all text-balance line-clamp-2"
+              title={price}
+            >
+              {price}
+            </p>
+          )}
+
+          <p className="text-[10px] sm:text-xs uppercase text-muted-foreground whitespace-nowrap">
+            {formatDate(item?.created_at)}&lrm;
           </p>
-        ) : (
-          <p
-            className="text-sm sm:text-lg font-bold break-all text-balance line-clamp-2"
-            title={price}
-          >
-            {price}
+        </div>
+
+        {!isHidePrice && (
+          <p className="text-sm text-muted-foreground line-clamp-1">
+            {translated_item?.name}
           </p>
         )}
 
-        <p className="text-xs sm:text-sm opacity-65 whitespace-nowrap">
-          {formatDate(item?.created_at)}&lrm;
+        <p className="text-[10px] sm:text-xs uppercase tracking-wide text-muted-foreground line-clamp-1 mt-auto pt-1">
+          {item?.translated_address}
         </p>
       </div>
-
-      {!isHidePrice && (
-        <p className="text-sm sm:text-base font-medium line-clamp-1">
-          {translated_item?.name}
-        </p>
-      )}
-      <p className="text-xs sm:text-sm opacity-65 line-clamp-1">
-        {item?.translated_address}
-      </p>
     </CustomLink>
   );
 };

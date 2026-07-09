@@ -5,7 +5,7 @@ import FeaturedSections from "./FeaturedSections";
 import { FeaturedSectionApi, sliderApi } from "@/utils/api";
 import OfferSliderSkeleton from "@/components/PagesComponent/Home/OfferSliderSkeleton";
 import FeaturedSectionsSkeleton from "./FeaturedSectionsSkeleton";
-import PopularCategories from "./PopularCategories";
+import CategoryGrid from "./CategoryGrid";
 import AdVertical from "@/components/AdSense/AdVertical";
 import AdFooterBanner from "@/components/AdSense/AdFooterBanner";
 import { useSelector } from "react-redux";
@@ -103,7 +103,7 @@ const Home = () => {
           )
         )
       )}
-      {hasSection("popular_categories") && <PopularCategories />}
+      {hasSection("popular_categories") && <CategoryGrid />}
 
       <div className="container">
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-3 sm:gap-6">
