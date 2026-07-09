@@ -32,6 +32,7 @@ import { RiLogoutCircleLine } from "react-icons/ri";
 import { settingsData } from "@/redux/reducer/settingSlice";
 import FilterTree from "@/components/Filter/FilterTree";
 
+
 const HomeMobileMenu = ({
   setIsLocationModalOpen,
   setIsRegisterModalOpen,
