@@ -10,6 +10,7 @@ import { t, truncate } from "@/utils";
 import CustomLink from "@/components/Common/CustomLink";
 import { useSelector } from "react-redux";
 import { GrLocation } from "react-icons/gr";
+import { FiChevronRight, FiUser, FiUserPlus } from "react-icons/fi";
 import HomeMobileMenu from "./HomeMobileMenu.jsx";
 import MailSentSuccessModal from "@/components/Auth/MailSentSuccessModal.jsx";
 import { useEffect, useState } from "react";
@@ -67,6 +68,31 @@ const HeaderCategoriesSkeleton = () => {
         <Skeleton className="w-full h-10" />
       </div>
     </div>
+  );
+};
+
+// Icon stacked over its label, the way OLX renders Wishlist / Chat / Login.
+// Renders a link when `href` is given, otherwise a button.
+const NavAction = ({ href, onClick, icon, label }) => {
+  const content = (
+    <>
+      {icon}
+      <span className="hidden xl:block text-[11px] leading-none whitespace-nowrap">
+        {truncate(label, 12)}
+      </span>
+    </>
+  );
+  const className =
+    "flex flex-col items-center gap-1 hover:opacity-70 transition-opacity";
+
+  return href ? (
+    <CustomLink href={href} className={className} title={label}>
+      {content}
+    </CustomLink>
+  ) : (
+    <button onClick={onClick} className={className} title={label}>
+      {content}
+    </button>
   );
 };
 
@@ -251,8 +277,8 @@ const HomeHeader = () => {
     <>
       <header className="py-5 border-b">
         <nav className="container">
-          <div className="space-between">
-            <CustomLink href="/">
+          <div className="flex items-center gap-3 xl:gap-4">
+            <CustomLink href="/" className="shrink-0">
               <CustomImage
                 src={settings?.header_logo}
                 alt="logo"
@@ -262,34 +288,29 @@ const HomeHeader = () => {
                 className="w-full h-9.75 sm:h-13 object-contain ltr:object-left rtl:object-right max-w-48.75"
               />
             </CustomLink>
-            {/* desktop category search select */}
 
+            <button
+              className="hidden lg:flex items-center gap-1.5 shrink-0 border rounded-full px-3 py-2 hover:bg-muted transition-colors"
+              onClick={() => setIsLocationModalOpen(true)}
+              title={locationText ? locationText : t("addLocation")}
+            >
+              <GrLocation size={16} className="shrink-0" />
+              <p className="hidden xl:block text-sm whitespace-nowrap">
+                {locationText
+                  ? truncate(locationText, 16)
+                  : truncate(t("addLocation"), 16)}
+              </p>
+              <FiChevronRight size={16} className="hidden xl:block shrink-0 rtl:rotate-180" />
+            </button>
+
+            {/* desktop category search select */}
             {isLargeScreen && (
-              <div className="flex items-center border leading-none rounded">
+              <div className="flex flex-1 min-w-0 items-center border leading-none rounded-full">
                 <Search />
               </div>
             )}
 
-            <button
-              className="hidden lg:flex items-center gap-1"
-              onClick={() => setIsLocationModalOpen(true)}
-            >
-              <GrLocation
-                size={16}
-                className="shrink-0"
-                title={locationText ? locationText : t("addLocation")}
-              />
-              <p
-                className="hidden xl:block text-sm"
-                title={locationText ? locationText : t("addLocation")}
-              >
-                {locationText
-                  ? truncate(locationText, 12)
-                  : truncate(t("addLocation"), 12)}
-              </p>
-            </button>
-
-            <div className="hidden lg:flex items-center gap-2">
+            <div className="hidden lg:flex items-center gap-3 xl:gap-5 shrink-0 ltr:ml-auto rtl:mr-auto">
               {IsLoggedin ? (
                 <ProfileDropdown
                   setIsLogout={setIsLogout}
@@ -297,54 +318,55 @@ const HomeHeader = () => {
                 />
               ) : (
                 <>
-                  <button
+                  <NavAction
                     onClick={() => setIsLoginOpen(true)}
-                    title={t("login")}
-                  >
-                    {truncate(t("login"), 12)}
-                  </button>
-                  <span className="border-l h-6 self-center"></span>
-                  <button
+                    icon={<FiUser size={20} />}
+                    label={t("login")}
+                  />
+                  <NavAction
                     onClick={() => setIsRegisterModalOpen(true)}
-                    title={t("register")}
-                  >
-                    {truncate(t("register"), 12)}
-                  </button>
+                    icon={<FiUserPlus size={20} />}
+                    label={t("register")}
+                  />
                 </>
               )}
 
+              {/* OLX-style pill: gradient ring around a white button */}
               <button
-                className="bg-primary px-2 xl:px-4 py-2 items-center text-white rounded-md  flex gap-1"
+                className="rounded-full p-[3px] bg-[linear-gradient(135deg,#23e5db_0%,#ffce32_50%,#3a77ff_100%)] disabled:opacity-60"
                 disabled={IsAdListingClicked}
                 onClick={handleAdListing}
                 title={t("adListing")}
               >
-                {IsAdListingClicked ? (
-                  <Loader2 size={18} className="animate-spin" />
-                ) : (
-                  <IoIosAddCircleOutline size={18} />
-                )}
-
-                <span className="hidden xl:inline">
-                  {truncate(t("adListing"), 12)}
+                <span className="flex items-center gap-1 rounded-full bg-background text-foreground font-bold px-3 xl:px-5 py-1.5">
+                  {IsAdListingClicked ? (
+                    <Loader2 size={18} className="animate-spin" />
+                  ) : (
+                    <IoIosAddCircleOutline size={18} />
+                  )}
+                  <span className="hidden xl:inline whitespace-nowrap">
+                    {truncate(t("adListing"), 12)}
+                  </span>
                 </span>
               </button>
 
               <LanguageDropdown />
             </div>
-            <HomeMobileMenu
-              setIsLocationModalOpen={setIsLocationModalOpen}
-              setIsRegisterModalOpen={setIsRegisterModalOpen}
-              setIsLogout={setIsLogout}
-              locationText={locationText}
-              handleAdListing={handleAdListing}
-              IsAdListingClicked={IsAdListingClicked}
-              setManageDeleteAccount={setManageDeleteAccount}
-            />
+            <div className="lg:hidden ltr:ml-auto rtl:mr-auto">
+              <HomeMobileMenu
+                setIsLocationModalOpen={setIsLocationModalOpen}
+                setIsRegisterModalOpen={setIsRegisterModalOpen}
+                setIsLogout={setIsLogout}
+                locationText={locationText}
+                handleAdListing={handleAdListing}
+                IsAdListingClicked={IsAdListingClicked}
+                setManageDeleteAccount={setManageDeleteAccount}
+              />
+            </div>
           </div>
 
           {!isLargeScreen && (
-            <div className="flex items-center border leading-none rounded mt-2">
+            <div className="flex items-center border leading-none rounded-full mt-3">
               <Search />
             </div>
           )}

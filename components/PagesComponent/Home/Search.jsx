@@ -24,6 +24,7 @@ import { useParams, usePathname } from "next/navigation";
 import { useNavigate } from "@/components/Hooks/useNavigate";
 import useGetCategories from "@/components/Layout/useGetCategories";
 import { useUpdateLocationInUrl } from "@/components/Hooks/useUpdateLocationInUrl";
+import { useTypedPlaceholder } from "@/components/Hooks/useTypedPlaceholder";
 
 const Search = () => {
   const {
@@ -47,7 +48,13 @@ const Search = () => {
   const hasMore = catCurrentPage < catLastPage;
   const { ref, inView } = useInView();
   const [searchQuery, setSearchQuery] = useState("");
+  const [isFocused, setIsFocused] = useState(false);
   const { generateAdsUrl } = useUpdateLocationInUrl();
+
+  // Cycle real category names through the placeholder, OLX-style: Search "Jobs"
+  const suggestions = cateData.map((c) => c.translated_name || c.name);
+  const typed = useTypedPlaceholder(suggestions, !searchQuery && !isFocused);
+  const placeholder = typed ? `${t("search")} "${typed}"` : t("searchAd");
 
 
   useEffect(() => {
@@ -130,19 +137,23 @@ const Search = () => {
       </Popover>
       <form
         onSubmit={handleSearchNav}
-        className="w-full flex items-center gap-2 ltr:border-l rtl:border-r py-1 px-1.5 sm:py-2 sm:px-3"
+        className="w-full flex items-center gap-2 ltr:border-l rtl:border-r py-1 px-1.5 sm:py-1.5 sm:px-3 min-w-0"
       >
-        <BiPlanet color="#595B6C" className="min-w-4 min-h-4" />
+        <BiPlanet color="#595B6C" className="min-w-4 min-h-4 shrink-0" />
         <input
           type="text"
-          placeholder={t("searchAd")}
-          className="text-sm outline-hidden w-full"
+          placeholder={placeholder}
+          aria-label={t("searchAd")}
+          className="text-sm outline-hidden w-full min-w-0 bg-transparent"
           value={searchQuery}
           onChange={(e) => setSearchQuery(e.target.value)}
+          onFocus={() => setIsFocused(true)}
+          onBlur={() => setIsFocused(false)}
         />
         <button
-          className="flex items-center gap-2 bg-primary text-white p-2 rounded"
+          className="flex items-center justify-center shrink-0 bg-primary text-white size-8 sm:size-9 rounded-full"
           type="submit"
+          aria-label={t("search")}
         >
           <FaSearch size={14} />
         </button>

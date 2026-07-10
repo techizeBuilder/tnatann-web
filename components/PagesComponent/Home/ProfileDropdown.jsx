@@ -32,11 +32,11 @@ const ProfileDropdown = ({ IsLogout, setIsLogout }) => {
         <CustomImage
           src={UserData?.profile}
           alt={UserData?.name}
-          width={32}
-          height={32}
-          className="rounded-full w-8 h-8 aspect-square object-cover border"
+          width={36}
+          height={36}
+          className="rounded-full w-9 h-9 aspect-square object-cover ring-2 ring-amber-400 ring-offset-1 ring-offset-background"
         />
-        <p>{truncate(UserData.name, 12)}</p>
+        <p className="hidden 2xl:block">{truncate(UserData.name, 12)}</p>
         <FaAngleDown className="text-muted-foreground shrink-0" size={12} />
       </DropdownMenuTrigger>
       <DropdownMenuContent align={isSmallScreen ? "start" : "center"}>
