@@ -1,0 +1,193 @@
+import { useEffect, useState } from "react";
+import {
+  Select,
+  SelectContent,
+  SelectGroup,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { allItemApi } from "@/utils/api";
+import AdHorizontalCardSkeleton from "@/components/Common/AdHorizontalCardSkeleton";
+import AdCardSkeleton from "@/components/Common/AdCardSkeleton";
+import AdCard from "@/components/Common/AdCard";
+import NoData from "@/components/EmptyStates/NoData";
+import AdHorizontalCard from "@/components/Common/AdHorizontalCard";
+import { useSearchParams } from "next/navigation";
+import { Button } from "@/components/ui/button";
+import { t } from "@/utils";
+import { ArrowsDownUpIcon, RowsIcon, SquaresFourIcon } from "@phosphor-icons/react";
+
+const SellerLsitings = ({ id }) => {
+  const searchParams = useSearchParams();
+  const view = searchParams.get("view") || "grid";
+  const sortBy = searchParams.get("sort") || "default";
+  const langCode = searchParams.get("lang")
+  const [isSellerItemsLoading, setIsSellerItemsLoading] = useState(false);
+  const [sellerItems, setSellerItems] = useState([]);
+  const [isSellerItemLoadMore, setIsSellerItemLoadMore] = useState(false);
+  const [CurrentPage, setCurrentPage] = useState(1);
+  const [hasMore, setHasMore] = useState(true);
+
+  useEffect(() => {
+    getSellerItems(1);
+  }, [sortBy, langCode]);
+
+  const getSellerItems = async (page) => {
+    try {
+      if (page === 1) {
+        setIsSellerItemsLoading(true);
+      }
+      const res = await allItemApi.getItems({
+        user_id: id,
+        ...(sortBy !== "default" && { sort_by: sortBy }),
+        page,
+      });
+
+      if (page > 1) {
+        // Append new data to existing sellerItems
+        setSellerItems((prevItems) => [...prevItems, ...res?.data?.data?.data]);
+      } else {
+        // Set new data if CurrentPage is 1 or initial load
+        setSellerItems(res?.data?.data?.data);
+      }
+
+      setCurrentPage(res?.data?.data?.current_page);
+      if (res?.data?.data.current_page === res?.data?.data.last_page) {
+        setHasMore(false); // Check if there's more data
+      }
+    } catch (error) {
+      console.log(error);
+    } finally {
+      setIsSellerItemsLoading(false);
+      setIsSellerItemLoadMore(false);
+    }
+  };
+
+  const handleLike = (id, liked) => {
+    setSellerItems((prev) =>
+      prev.map((item) => (item.id === id ? { ...item, is_liked: liked } : item))
+    );
+  };
+
+  const handleProdLoadMore = () => {
+    setIsSellerItemLoadMore(true);
+    getSellerItems(CurrentPage + 1);
+  };
+
+  const toggleView = (newView) => {
+    const params = new URLSearchParams(searchParams);
+    params.set("view", newView);
+    window.history.pushState(null, "", `?${params.toString()}`);
+  };
+
+  const handleSortBy = (value) => {
+    const params = new URLSearchParams(searchParams);
+    params.set("sort", value);
+    window.history.pushState(null, "", `?${params.toString()}`);
+  };
+
+  return (
+    <>
+      <div className="flex items-center justify-between">
+        <div className="flex flex-col sm:flex-row sm:items-center gap-2">
+          <div className="flex items-center gap-1">
+            <ArrowsDownUpIcon size={16} />
+            <span className="whitespace-nowrap">{t("sortBy")}</span>
+          </div>
+          <Select value={sortBy} onValueChange={handleSortBy}>
+            <SelectTrigger>
+              <SelectValue placeholder={t("sortBy")} />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectGroup>
+                <SelectItem value="default">
+                  {t("default")}
+                </SelectItem>
+                <SelectItem value="new-to-old">
+                  {t("newestToOldest")}
+                </SelectItem>
+                <SelectItem value="old-to-new">
+                  {t("oldestToNewest")}
+                </SelectItem>
+                <SelectItem value="price-high-to-low">
+                  {t("priceHighToLow")}
+                </SelectItem>
+                <SelectItem value="price-low-to-high">
+                  {t("priceLowToHigh")}
+                </SelectItem>
+                <SelectItem value="popular_items">{t("popular")}</SelectItem>
+              </SelectGroup>
+            </SelectContent>
+          </Select>
+        </div>
+        <div className="flex items-center gap-1">
+          <button
+            onClick={() => toggleView("grid")}
+            className={`flex items-center justify-center size-8 sm:size-10 hover:text-black text-muted-foreground transition-colors duration-300 cursor-pointer gap-2 rounded-full ${view === "grid"
+              ? "bg-primary text-white"
+              : ""
+              }`}
+          >
+            <SquaresFourIcon className="size-5 sm:size-6" weight={view === "grid" ? "fill" : "regular"} />
+          </button>
+          <button
+            onClick={() => toggleView("list")}
+            className={`flex items-center justify-center size-8 sm:size-10 text-muted-foreground hover:text-black transition-colors duration-300 cursor-pointer gap-2 rounded-full ${view === "list"
+              ? "bg-primary text-white"
+              : ""
+              }`}
+          >
+            <RowsIcon className="size-5 sm:size-6" weight={view === "list" ? "fill" : "regular"} />
+          </button>
+        </div>
+      </div>
+      <div className="grid grid-cols-12 gap-4">
+        {isSellerItemsLoading ? (
+          Array.from({ length: 12 }).map((_, index) =>
+            view === "list" ? (
+              <div className="col-span-12" key={index}>
+                <AdHorizontalCardSkeleton />
+              </div>
+            ) : (
+              <div key={index} className="col-span-6 lg:col-span-4">
+                <AdCardSkeleton />
+              </div>
+            )
+          )
+        ) : sellerItems && sellerItems.length > 0 ? (
+          sellerItems?.map((item, index) =>
+            view === "list" ? (
+              <div className="col-span-12" key={index}>
+                <AdHorizontalCard item={item} handleLike={handleLike} />
+              </div>
+            ) : (
+              <div className="col-span-6 lg:col-span-4" key={index}>
+                <AdCard item={item} handleLike={handleLike} />
+              </div>
+            )
+          )
+        ) : (
+          <div className="col-span-12">
+            <NoData title={t("noAdsFound")} />
+          </div>
+        )}
+      </div>
+
+      {sellerItems && sellerItems.length > 0 && hasMore && (
+        <div className="text-center mt-6">
+          <Button
+            variant="outline"
+            className="text-sm sm:text-base text-primary w-[256px]"
+            disabled={isSellerItemsLoading || isSellerItemLoadMore}
+            onClick={handleProdLoadMore}
+          >
+            {isSellerItemLoadMore ? t("loading") : t("loadMore")}
+          </Button>
+        </div>
+      )}
+    </>
+  );
+};
+
+export default SellerLsitings;

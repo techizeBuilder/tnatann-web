@@ -1,0 +1,84 @@
+import { t } from "@/utils";
+import {
+  Accordion,
+  AccordionContent,
+  AccordionItem,
+  AccordionTrigger,
+} from "@/components/ui/accordion";
+import LocationTree from "./LocationTree";
+import BudgetFilter from "./BudgetFilter";
+import DatePostedFilter from "./DatePostedFilter";
+import ExtraDetailsFilter from "./ExtraDetailsFilter";
+import { cn } from "@/lib/utils";
+import { useAdsFilters } from "@/components/Hooks/useAdsFilters";
+
+const Filter = ({ customFields, newSearchParams }) => {
+  const { initialExtraDetails } = useAdsFilters();
+  const isShowCustomfieldFilter =
+    customFields &&
+    customFields.length > 0 &&
+    customFields.some(
+      (field) =>
+        field.type === "checkbox" ||
+        field.type === "radio" ||
+        field.type === "dropdown"
+    );
+
+  return (
+    <div className="w-full border rounded-lg overflow-hidden">
+      <div className="px-4 py-2 font-semibold border-b text-xl">
+        {t("filters")}
+      </div>
+      <div className=" flex flex-col ">
+        <Accordion
+          type="multiple"
+          // defaultValue={["category"]}
+          className="w-full"
+        >
+          <AccordionItem value="location" className="border-b">
+            <AccordionTrigger className="p-4">
+              <span className="font-semibold text-base">{t("location")}</span>
+            </AccordionTrigger>
+            <AccordionContent className="px-4 pb-4">
+              <LocationTree />
+            </AccordionContent>
+          </AccordionItem>
+          <AccordionItem value="budget" className="border-b">
+            <AccordionTrigger className="p-4">
+              <span className="font-semibold text-base">{t("budget")}</span>
+            </AccordionTrigger>
+            <AccordionContent className="px-4 pb-4">
+              <BudgetFilter />
+            </AccordionContent>
+          </AccordionItem>
+          <AccordionItem value="date-posted" className={cn(!isShowCustomfieldFilter && 'border-0')} >
+            <AccordionTrigger className="p-4">
+              <span className="font-semibold text-base">{t("datePosted")}</span>
+            </AccordionTrigger>
+            <AccordionContent className="px-4 pb-4">
+              <DatePostedFilter />
+            </AccordionContent>
+          </AccordionItem>
+          {isShowCustomfieldFilter && (
+            <AccordionItem value="extra-details" className='border-0' >
+              <AccordionTrigger className="p-4">
+                <span className="font-semibold text-base">
+                  {t("extradetails")}
+                </span>
+              </AccordionTrigger>
+              <AccordionContent className="px-4 pb-4">
+                <ExtraDetailsFilter
+                  key={JSON.stringify(initialExtraDetails)}
+                  customFields={customFields}
+                  newSearchParams={newSearchParams}
+                />
+              </AccordionContent>
+            </AccordionItem>
+          )}
+        </Accordion>
+      </div>
+    </div>
+  );
+};
+
+export default Filter;
