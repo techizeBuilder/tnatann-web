@@ -21,14 +21,13 @@ const RegisterWithEmailForm = ({ OnHide, setIsMailSentSuccess, showLoader, setSh
 
   const [formData, setFormData] = useState({
     email: "",
-    username: "",
     password: "",
     IsPasswordVisible: false,
   });
-  const [errors, setErrors] = useState({ email: "", username: "", password: "", consent: "" });
+  const [errors, setErrors] = useState({ email: "", password: "", consent: "" });
   const [consentChecked, setConsentChecked] = useState(false);
 
-  const { email, username, password, IsPasswordVisible } = formData;
+  const { email, password, IsPasswordVisible } = formData;
 
   const handleInputChange = (field, value) => {
     setFormData((prev) => ({ ...prev, [field]: value }));
@@ -49,18 +48,13 @@ const RegisterWithEmailForm = ({ OnHide, setIsMailSentSuccess, showLoader, setSh
 
   const validateForm = () => {
     let isValid = true;
-    const newErrors = { email: "", username: "", password: "", consent: "" };
+    const newErrors = { email: "", password: "", consent: "" };
 
     if (!email.trim()) {
       newErrors.email = t("emailRequired");
       isValid = false;
     } else if (!/\S+@\S+\.\S+/.test(email)) {
       newErrors.email = t("emailInvalid");
-      isValid = false;
-    }
-
-    if (!username.trim()) {
-      newErrors.username = t("usernameRequired");
       isValid = false;
     }
 
@@ -93,7 +87,6 @@ const RegisterWithEmailForm = ({ OnHide, setIsMailSentSuccess, showLoader, setSh
 
       try {
         await userSignUpApi.userSignup({
-          name: username ? username : "",
           email: email ? email : "",
           firebase_id: user?.uid,
           type: "email",
@@ -128,20 +121,6 @@ const RegisterWithEmailForm = ({ OnHide, setIsMailSentSuccess, showLoader, setSh
         />
         {errors.email && (
           <span className="text-destructive text-sm">{errors.email}</span>
-        )}
-      </div>
-
-      <div className="labelInputCont">
-        <Label className="requiredInputLabel">{t("username")}</Label>
-        <Input
-          type="text"
-          placeholder={t("typeUsername")}
-          value={username}
-          onChange={(e) => handleInputChange("username", e.target.value)}
-          className={cn(errors.username && "border-destructive focus-visible:ring-destructive")}
-        />
-        {errors.username && (
-          <span className="text-destructive text-sm">{errors.username}</span>
         )}
       </div>
 

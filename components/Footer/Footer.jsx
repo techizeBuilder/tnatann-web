@@ -82,7 +82,7 @@ export default function Footer() {
             <CustomLink href="/">
               <CustomImage
                 src={settings?.footer_logo}
-                alt="eClassify"
+                alt="Tnatann"
                 width={195}
                 height={52}
                 className="w-full h-13 object-contain ltr:object-left rtl:object-right max-w-48.75"

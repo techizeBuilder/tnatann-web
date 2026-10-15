@@ -1,10 +1,11 @@
 "use client";
 import { sendMessageApi } from "@/utils/api";
-import { useEffect, useState, useRef } from "react";
+import { useEffect, useMemo, useState, useRef } from "react";
 import { CircleNotchIcon, MicrophoneIcon, PaperPlaneRightIcon, StopCircleIcon, UploadSimpleIcon, XIcon } from "@phosphor-icons/react";
 import { useReactMediaRecorder } from "react-media-recorder";
 import { toast } from "sonner";
 import { t } from "@/utils";
+import { cn } from "@/lib/utils";
 import CustomImage from "@/components/Common/CustomImage";
 
 const SendMessage = ({ selectedChatDetails, setChatMessages, setSelectedChatDetails, setChatListData }) => {
@@ -136,12 +137,13 @@ const SendMessage = ({ selectedChatDetails, setChatMessages, setSelectedChatDeta
     }
   };
 
-  const sendMessage = async (audioFile = null) => {
-    if ((!message.trim() && !selectedFile && !audioFile) || isSending) return;
+  const sendMessage = async (audioFile = null, textOverride = null) => {
+    const textToSend = textOverride !== null ? textOverride : message;
+    if ((!textToSend.trim() && !selectedFile && !audioFile) || isSending) return;
 
     const params = {
       item_offer_id: id,
-      message: message ? message : "",
+      message: textToSend ? textToSend : "",
       file: selectedFile ? selectedFile : "",
       audio: audioFile ? audioFile : "",
     };
@@ -191,8 +193,127 @@ const SendMessage = ({ selectedChatDetails, setChatMessages, setSelectedChatDeta
     }
   };
 
+  const quickReplyCategories = useMemo(
+    () => [
+      {
+        key: "popular",
+        label: t("quickReplyTabPopular"),
+        replies: [
+          t("quickReplyIsStillAvailable"),
+          t("quickReplyLetsMeetUp"),
+          t("quickReplyCurrentLocation"),
+          t("quickReplySharePictures"),
+          t("quickReplyDealerOrOwner"),
+        ],
+      },
+      {
+        key: "rc",
+        label: t("quickReplyTabRC"),
+        replies: [
+          t("quickReplyHaveRC"),
+          t("quickReplyRcInYourName"),
+          t("quickReplyNumberOfOwners"),
+          t("quickReplyLoanOnRc"),
+          t("quickReplyRcTransferPossible"),
+          t("quickReplyDuplicateKeys"),
+        ],
+      },
+      {
+        key: "carCondition",
+        label: t("quickReplyTabCarCondition"),
+        replies: [
+          t("quickReplyAccidentHistory"),
+          t("quickReplyEngineCondition"),
+          t("quickReplyRepainting"),
+          t("quickReplyTyreCondition"),
+          t("quickReplyServiceHistory"),
+        ],
+      },
+      {
+        key: "insurance",
+        label: t("quickReplyTabInsurance"),
+        replies: [
+          t("quickReplyInsuranceValid"),
+          t("quickReplyInsuranceType"),
+          t("quickReplyInsuranceExpiry"),
+          t("quickReplyInsuranceTransferable"),
+          t("quickReplyNoClaimBonus"),
+        ],
+      },
+      {
+        key: "paymentMode",
+        label: t("quickReplyTabPaymentMode"),
+        replies: [
+          t("quickReplyOnlinePayment"),
+          t("quickReplyEmiAvailable"),
+          t("quickReplyExchangeOffer"),
+        ],
+      },
+      {
+        key: "photo",
+        label: t("quickReplyTabPhoto"),
+        replies: [t("quickReplySharePictures"), t("quickReplyShareVideo")],
+      },
+      {
+        key: "user",
+        label: t("quickReplyTabUser"),
+        replies: [t("quickReplyDealerOrOwner"), t("quickReplyWhySelling")],
+      },
+      {
+        key: "fuelType",
+        label: t("quickReplyTabFuelType"),
+        replies: [t("quickReplyFuelType"), t("quickReplyMileage")],
+      },
+    ],
+    []
+  );
+
+  const [activeQuickReplyTab, setActiveQuickReplyTab] = useState(0);
+  const activeReplies = quickReplyCategories[activeQuickReplyTab]?.replies || [];
+
   return (
     <div className="flex flex-col">
+      {/* Quick Replies */}
+      {!isRecording && (
+        <div className="bg-muted/40 border-t">
+          <div className="flex items-center gap-1 overflow-x-auto bg-blue-900 px-2">
+            {quickReplyCategories.map((cat, idx) => (
+              <button
+                key={cat.key}
+                type="button"
+                onClick={() => setActiveQuickReplyTab(idx)}
+                className={cn(
+                  "shrink-0 whitespace-nowrap px-3 py-2.5 text-sm font-medium border-b-2 transition-colors",
+                  idx === activeQuickReplyTab
+                    ? "border-white text-white font-semibold"
+                    : "border-transparent text-white/70 hover:text-white"
+                )}
+              >
+                {cat.label} ({cat.replies.length})
+              </button>
+            ))}
+          </div>
+          <div className="px-4 pt-3 pb-1">
+            <p className="text-sm font-semibold">
+              {quickReplyCategories[activeQuickReplyTab]?.label}
+            </p>
+            <div className="flex flex-wrap gap-2 py-2">
+              {activeReplies.map((reply) => (
+                <button
+                  key={reply}
+                  type="button"
+                  disabled={isSending}
+                  onClick={() => sendMessage(null, reply)}
+                  className="text-sm border rounded-md px-3 py-1.5 hover:border-primary hover:text-primary transition-colors disabled:opacity-50"
+                >
+                  {reply}
+                </button>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* File Preview */}
       {previewUrl && (
         <div className="px-4 pt-2 pb-1">

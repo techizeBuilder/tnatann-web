@@ -1,5 +1,5 @@
 "use client";
-import { formatPhoneNumber, handleFirebaseAuthError, t } from "@/utils";
+import { handleFirebaseAuthError, t } from "@/utils";
 import {
   Dialog,
   DialogContent,
@@ -7,11 +7,10 @@ import {
   DialogHeader,
   DialogTitle,
 } from "../ui/dialog";
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { useSelector } from "react-redux";
 import {
   Fcmtoken,
-  getOtpServiceProvider,
   settingsData,
 } from "@/redux/reducer/settingSlice";
 import "react-phone-input-2/lib/style.css";
@@ -20,21 +19,17 @@ import { Button } from "../ui/button";
 import {
   getAuth,
   GoogleAuthProvider,
-  RecaptchaVerifier,
-  signInWithPhoneNumber,
   signInWithPopup,
 } from "firebase/auth";
 import { toast } from "sonner";
-import { getOtpApi, getUserExistsApi, userSignUpApi } from "@/utils/api";
+import { getUserExistsApi, userSignUpApi } from "@/utils/api";
 import { loadUpdateData } from "@/redux/reducer/authSlice";
 import FirebaseData from "@/utils/Firebase.js";
 import LoginWithEmailForm from "./LoginWithEmailForm";
 import LoginWithMobileForm from "./LoginWithMobileForm";
-import OtpScreen from "./OtpScreen";
 import TermsAndPrivacyLinks from "./TermsAndPrivacyLinks";
 import GoogleConsentModal from "./GoogleConsentModal";
 import { setIsLoginOpen } from "@/redux/reducer/globalStateSlice";
-import ResetPasswordScreen from "./ResetPasswordScreen";
 import { CircleNotchIcon, EnvelopeSimpleIcon, PhoneIcon } from "@phosphor-icons/react";
 import googleLogo from '../../public/assets/google_logo.svg'
 import CustomImage from "../Common/CustomImage";
@@ -44,25 +39,14 @@ const LoginModal = ({ IsLoginOpen, setIsRegisterModalOpen, googleConsent, setGoo
   const auth = getAuth();
   const { signOut } = FirebaseData();
   const fetchFCM = useSelector(Fcmtoken);
-  const [IsOTPScreen, setIsOTPScreen] = useState(null);
-  const [resendTimer, setResendTimer] = useState(0);
-  const [loginStates, setLoginStates] = useState({
-    number: "",
-    countryCode: "",
-    regionCode: "",
-    password: "",
-  });
-  const [forgotPasswordLoading, setForgotPasswordLoading] = useState(false);
   const [isLoadingWithGoogle, setIsLoadingWithGoogle] = useState(false)
   const [showLoader, setShowLoader] = useState(false)
 
-
-  const [confirmationResult, setConfirmationResult] = useState(null);
-  const [FirebaseId, setFirebaseId] = useState("");
-  const { number, countryCode } = loginStates;
-  const formattedNumber = formatPhoneNumber(number, countryCode);
-
-  const otp_service_provider = useSelector(getOtpServiceProvider);
+  const [descriptionState, setDescriptionState] = useState({
+    type: "login", // "login" | "otp"
+    phoneNumber: "",
+  });
+  const [isOTPScreen, setIsOTPScreen] = useState(false);
 
   // Active authentication methods
   const mobile_authentication = Number(settings?.mobile_authentication);
@@ -74,6 +58,7 @@ const LoginModal = ({ IsLoginOpen, setIsRegisterModalOpen, googleConsent, setGoo
   );
 
   const IsShowOrSignIn =
+    !isOTPScreen &&
     !(
       mobile_authentication === 0 &&
       email_authentication === 0 &&
@@ -81,57 +66,14 @@ const LoginModal = ({ IsLoginOpen, setIsRegisterModalOpen, googleConsent, setGoo
     ) && google_authentication === 1;
 
   const OnHide = async () => {
-    setIsOTPScreen(null);
     setIsLoginOpen(false);
-    setConfirmationResult(null);
-    setResendTimer(0);
+    setIsOTPScreen(false);
+    setDescriptionState({ type: "login", phoneNumber: "" });
   };
 
-  const generateRecaptcha = async () => {
-    // Reuse existing verifier if it's still valid
-    if (window.recaptchaVerifier && !window.recaptchaVerifier.destroyed) {
-      return window.recaptchaVerifier;
-    }
-    const recaptchaContainer = document.getElementById("recaptcha-container");
-    if (!recaptchaContainer) {
-      console.error("Container element 'recaptcha-container' not found.");
-      return null;
-    }
-    // Clear container and reset reference
-    recaptchaContainer.innerHTML = "";
-    window.recaptchaVerifier = undefined;
-    try {
-      window.recaptchaVerifier = new RecaptchaVerifier(
-        auth,
-        recaptchaContainer,
-        { size: "invisible" }
-      );
-      return window.recaptchaVerifier;
-    } catch (error) {
-      console.error("Error initializing RecaptchaVerifier:", error.message);
-      return null;
-    }
-  };
-
-  useEffect(() => {
-    return () => {
-      recaptchaClear();
-    };
-  }, []);
-
-  const recaptchaClear = async () => {
-    if (window.recaptchaVerifier && !window.recaptchaVerifier.destroyed) {
-      try {
-        await window.recaptchaVerifier.clear();
-      } catch (error) {
-        // Ignore errors - verifier might already be cleared
-      }
-    }
-    window.recaptchaVerifier = undefined;
-    const recaptchaContainer = document.getElementById("recaptcha-container");
-    if (recaptchaContainer) {
-      recaptchaContainer.innerHTML = "";
-    }
+  const handleChangeClick = () => {
+    setIsOTPScreen(false);
+    setDescriptionState({ type: "login", phoneNumber: "" });
   };
 
   const completeGoogleSignup = async (user) => {
@@ -202,57 +144,6 @@ const LoginModal = ({ IsLoginOpen, setIsRegisterModalOpen, googleConsent, setGoo
     setIsRegisterModalOpen(true);
   };
 
-  // Handle forgot password - send OTP and show OTP screen
-  const handleForgotPassword = async () => {
-    const PhoneNumber = `${loginStates.countryCode}${formattedNumber}`;
-    if (otp_service_provider === "twilio" || otp_service_provider === "2factor") {
-      try {
-        const response = await getOtpApi.getOtp({ number: formattedNumber, country_code: countryCode });
-        if (response?.data?.error === false) {
-          toast.success(t("otpSentSuccess"));
-          setResendTimer(60);
-          setIsOTPScreen("otp");
-        } else {
-          toast.error(t("failedToSendOtp"));
-        }
-      } catch (error) {
-        console.log(error);
-      }
-    } else {
-      try {
-        const appVerifier = await generateRecaptcha();
-        const confirmation = await signInWithPhoneNumber(
-          auth,
-          PhoneNumber,
-          appVerifier
-        );
-        setConfirmationResult(confirmation);
-        toast.success(t("otpSentSuccess"));
-        setResendTimer(60);
-        setIsOTPScreen("otp");
-      } catch (error) {
-
-        console.log(error)
-
-        handleFirebaseAuthError(error.code);
-      }
-    }
-  };
-
-  // Handle OTP verification success - move to reset password screen
-  const handleForgotPasswordOtpVerified = (firebase_id) => {
-    setFirebaseId(firebase_id);
-    setIsOTPScreen("reset");
-    toast.success(t("otpVerified"));
-  };
-
-  // Handle successful password reset - go back to login
-  const handleResetPasswordSuccess = () => {
-    setIsOTPScreen(null);
-    setConfirmationResult(null);
-    setResendTimer(0);
-  };
-
   return (
     <>
       <Dialog open={IsLoginOpen} onOpenChange={setIsLoginOpen}>
@@ -262,10 +153,8 @@ const LoginModal = ({ IsLoginOpen, setIsRegisterModalOpen, googleConsent, setGoo
         >
           <DialogHeader>
             <DialogTitle className="text-3xl sm:text-4xl font-light">
-              {IsOTPScreen === "otp" ? (
+              {descriptionState.type === "otp" ? (
                 t("verifyOtp")
-              ) : IsOTPScreen === "reset" ? (
-                t("resetYourPassword")
               ) : (
                 <>
                   {t("loginTo")}{" "}
@@ -274,18 +163,16 @@ const LoginModal = ({ IsLoginOpen, setIsRegisterModalOpen, googleConsent, setGoo
               )}
             </DialogTitle>
             <DialogDescription className="text-base text-black font-light">
-              {IsOTPScreen === "otp" ? (
+              {descriptionState.type === "otp" ? (
                 <>
-                  {t("sentTo")} {`${countryCode}${formattedNumber}`}{" "}
+                  {t("sentTo")} {descriptionState.phoneNumber}{" "}
                   <span
-                    onClick={() => setIsOTPScreen(false)}
+                    onClick={handleChangeClick}
                     className="text-primary underline cursor-pointer"
                   >
                     {t("change")}
                   </span>
                 </>
-              ) : IsOTPScreen === "reset" ? (
-                t("enterNewPassword")
               ) : (
                 <>
                   {t("newto")} {settings?.company_name}?{" "}
@@ -300,83 +187,53 @@ const LoginModal = ({ IsLoginOpen, setIsRegisterModalOpen, googleConsent, setGoo
             </DialogDescription>
           </DialogHeader>
 
-          {IsOTPScreen === "otp" ? (
-            <OtpScreen
-              OnHide={OnHide}
-              generateRecaptcha={generateRecaptcha}
-              countryCode={countryCode}
-              formattedNumber={formattedNumber}
-              confirmationResult={confirmationResult}
-              setConfirmationResult={setConfirmationResult}
-              resendTimer={resendTimer}
-              setResendTimer={setResendTimer}
-              regionCode={loginStates.regionCode}
-              onOtpVerified={handleForgotPasswordOtpVerified}
-              key="forgot-password-otp"
-            />
-          ) : IsOTPScreen === "reset" ? (
-            <ResetPasswordScreen
-              FirebaseId={FirebaseId}
-              formattedNumber={formattedNumber}
-              countryCode={loginStates.countryCode}
-              onSuccess={handleResetPasswordSuccess}
-              onCancel={() => setIsOTPScreen(null)}
-            />
-          ) : (
-            <div className="flex flex-col gap-7.5 mt-3.5">
-              {!(
-                mobile_authentication === 0 &&
-                email_authentication === 0 &&
-                google_authentication === 1
-              ) &&
-                mobile_authentication === 1 &&
-                email_authentication === 1 &&
-                (IsLoginWithEmail ? (
-                  <LoginWithEmailForm OnHide={OnHide} key={IsLoginWithEmail} forgotPasswordLoading={forgotPasswordLoading} setForgotPasswordLoading={setForgotPasswordLoading} showLoader={showLoader} setShowLoader={setShowLoader} isLoadingWithGoogle={isLoadingWithGoogle} />
-                ) : (
-                  <LoginWithMobileForm
-                    formattedNumber={formattedNumber}
-                    loginStates={loginStates}
-                    setLoginStates={setLoginStates}
-                    onForgotPassword={handleForgotPassword}
-                    OnHide={OnHide}
-                    key={IsLoginWithEmail}
-                    forgotPasswordLoading={forgotPasswordLoading}
-                    setForgotPasswordLoading={setForgotPasswordLoading}
-                    isLoadingWithGoogle={isLoadingWithGoogle}
-                    showLoader={showLoader}
-                    setShowLoader={setShowLoader}
-                  />
-                ))}
-
-              {email_authentication === 1 && mobile_authentication === 0 && (
-                <LoginWithEmailForm OnHide={OnHide} key={IsLoginWithEmail} forgotPasswordLoading={forgotPasswordLoading} setForgotPasswordLoading={setForgotPasswordLoading} showLoader={showLoader} setShowLoader={setShowLoader} isLoadingWithGoogle={isLoadingWithGoogle} />
-              )}
-
-              {mobile_authentication === 1 && email_authentication === 0 && (
+          <div className="flex flex-col gap-7.5 mt-3.5">
+            {!(
+              mobile_authentication === 0 &&
+              email_authentication === 0 &&
+              google_authentication === 1
+            ) &&
+              mobile_authentication === 1 &&
+              email_authentication === 1 &&
+              (IsLoginWithEmail ? (
+                <LoginWithEmailForm OnHide={OnHide} key={IsLoginWithEmail} showLoader={showLoader} setShowLoader={setShowLoader} isLoadingWithGoogle={isLoadingWithGoogle} />
+              ) : (
                 <LoginWithMobileForm
                   OnHide={OnHide}
-                  formattedNumber={formattedNumber}
-                  loginStates={loginStates}
-                  setLoginStates={setLoginStates}
-                  onForgotPassword={handleForgotPassword}
+                  setDescriptionState={setDescriptionState}
+                  isOTPScreen={isOTPScreen}
+                  setIsOTPScreen={setIsOTPScreen}
                   key={IsLoginWithEmail}
-                  forgotPasswordLoading={forgotPasswordLoading}
-                  setForgotPasswordLoading={setForgotPasswordLoading}
-                  isLoadingWithGoogle={isLoadingWithGoogle}
                   showLoader={showLoader}
                   setShowLoader={setShowLoader}
                 />
-              )}
+              ))}
 
-              {IsShowOrSignIn && (
-                <div className="flex items-center gap-2">
-                  <hr className="w-full" />
-                  <p className="text-nowrap text-sm">{t("orSignInWith")}</p>
-                  <hr className="w-full" />
-                </div>
-              )}
+            {email_authentication === 1 && mobile_authentication === 0 && (
+              <LoginWithEmailForm OnHide={OnHide} key={IsLoginWithEmail} showLoader={showLoader} setShowLoader={setShowLoader} isLoadingWithGoogle={isLoadingWithGoogle} />
+            )}
 
+            {mobile_authentication === 1 && email_authentication === 0 && (
+              <LoginWithMobileForm
+                OnHide={OnHide}
+                setDescriptionState={setDescriptionState}
+                isOTPScreen={isOTPScreen}
+                setIsOTPScreen={setIsOTPScreen}
+                key={IsLoginWithEmail}
+                showLoader={showLoader}
+                setShowLoader={setShowLoader}
+              />
+            )}
+
+            {IsShowOrSignIn && (
+              <div className="flex items-center gap-2">
+                <hr className="w-full" />
+                <p className="text-nowrap text-sm">{t("orSignInWith")}</p>
+                <hr className="w-full" />
+              </div>
+            )}
+
+            {!isOTPScreen && (
               <div className="flex flex-col gap-4">
                 {google_authentication === 1 && (
                   <Button
@@ -384,7 +241,7 @@ const LoginModal = ({ IsLoginOpen, setIsRegisterModalOpen, googleConsent, setGoo
                     size="big"
                     className="flex items-center justify-center py-4 text-base"
                     onClick={handleGoogleSignup}
-                    disabled={isLoadingWithGoogle || showLoader || forgotPasswordLoading}
+                    disabled={isLoadingWithGoogle || showLoader}
                   >
 
                     {
@@ -400,7 +257,7 @@ const LoginModal = ({ IsLoginOpen, setIsRegisterModalOpen, googleConsent, setGoo
                     size="big"
                     className="flex items-center justify-center py-4 text-base h-auto"
                     onClick={() => setIsLoginWithEmail(false)}
-                    disabled={showLoader || forgotPasswordLoading || isLoadingWithGoogle}
+                    disabled={showLoader || isLoadingWithGoogle}
                   >
                     <PhoneIcon className="size-6!" />
                     {t("continueWithMobile")}
@@ -413,7 +270,7 @@ const LoginModal = ({ IsLoginOpen, setIsRegisterModalOpen, googleConsent, setGoo
                       size="big"
                       className="flex items-center justify-center py-4 text-base h-auto"
                       onClick={() => setIsLoginWithEmail(true)}
-                      disabled={showLoader || forgotPasswordLoading || isLoadingWithGoogle}
+                      disabled={showLoader || isLoadingWithGoogle}
                     >
                       <EnvelopeSimpleIcon className="size-6!" />
                       {t("continueWithEmail")}
@@ -421,9 +278,9 @@ const LoginModal = ({ IsLoginOpen, setIsRegisterModalOpen, googleConsent, setGoo
                   )
                 )}
               </div>
-              <TermsAndPrivacyLinks OnHide={OnHide} />
-            </div>
-          )}
+            )}
+            {!isOTPScreen && <TermsAndPrivacyLinks OnHide={OnHide} />}
+          </div>
           <div id="recaptcha-container" style={{ display: "none" }}></div>
         </DialogContent>
       </Dialog>

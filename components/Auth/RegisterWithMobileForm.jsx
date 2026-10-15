@@ -17,9 +17,8 @@ import {
 } from "@/redux/reducer/settingSlice";
 import useAutoFocus from "../Hooks/useAutoFocus";
 import OtpScreen from "./OtpScreen";
-import { Input } from "../ui/input";
 import { cn } from "@/lib/utils";
-import { CircleNotchIcon, EyeIcon, EyeSlashIcon } from "@phosphor-icons/react";
+import { CircleNotchIcon } from "@phosphor-icons/react";
 import TermsAndPrivacyLinks from "./TermsAndPrivacyLinks";
 
 const RegisterWithMobileForm = ({
@@ -40,9 +39,7 @@ const RegisterWithMobileForm = ({
   const [regionCode, setRegionCode] = useState("");
   const [confirmationResult, setConfirmationResult] = useState(null);
   const [resendTimer, setResendTimer] = useState(0);
-  const [isPasswordVisible, setIsPasswordVisible] = useState(false);
-  const [password, setPassword] = useState("");
-  const [errors, setErrors] = useState({ phone: "", password: "", consent: "" });
+  const [errors, setErrors] = useState({ phone: "", consent: "" });
   const [consentChecked, setConsentChecked] = useState(false);
 
   // Remove any non-digit characters from the country code
@@ -157,21 +154,13 @@ const RegisterWithMobileForm = ({
 
   const validateForm = () => {
     let isValid = true;
-    const newErrors = { phone: "", password: "", consent: "" };
+    const newErrors = { phone: "", consent: "" };
 
     if (!formattedNumber) {
       newErrors.phone = t("pleaseEnterMobileNumber");
       isValid = false;
     } else if (!isValidPhoneNumber(`${countryCode}${formattedNumber}`)) {
       newErrors.phone = t("invalidPhoneNumber");
-      isValid = false;
-    }
-
-    if (!password) {
-      newErrors.password = t("passwordRequired");
-      isValid = false;
-    } else if (password.length < 6) {
-      newErrors.password = t("passwordTooShort");
       isValid = false;
     }
 
@@ -240,11 +229,6 @@ const RegisterWithMobileForm = ({
     }
   };
 
-  // Toggle password visibility
-  const togglePasswordVisibility = () => {
-    setIsPasswordVisible((prev) => !prev);
-  };
-
   // Show OTP screen if OTP was sent
   if (isOTPScreen) {
     return (
@@ -258,8 +242,6 @@ const RegisterWithMobileForm = ({
         setResendTimer={setResendTimer}
         resendTimer={resendTimer}
         regionCode={regionCode}
-        password={password}
-        isRegister={true}
         key="register-otp"
       />
     );
@@ -286,37 +268,6 @@ const RegisterWithMobileForm = ({
         />
         {errors.phone && (
           <span className="text-destructive text-sm">{errors.phone}</span>
-        )}
-      </div>
-
-      {/* Password Input */}
-      <div className="labelInputCont">
-        <Label className="requiredInputLabel">{t("password")}</Label>
-        <div className="flex items-center relative">
-          <Input
-            type={isPasswordVisible ? "text" : "password"}
-            placeholder={t("enterPassword")}
-            className={cn("ltr:pr-9 rtl:pl-9", errors.password && "border-destructive focus-visible:ring-destructive")}
-            value={password}
-            onChange={(e) => {
-              setPassword(e.target.value);
-              setErrors((prev) => ({ ...prev, password: "" }));
-            }}
-          />
-          <button
-            type="button"
-            className="absolute ltr:right-3 rtl:left-3 cursor-pointer"
-            onClick={togglePasswordVisibility}
-          >
-            {isPasswordVisible ? (
-              <EyeIcon size={20} />
-            ) : (
-              <EyeSlashIcon size={20} />
-            )}
-          </button>
-        </div>
-        {errors.password && (
-          <span className="text-destructive text-sm">{errors.password}</span>
         )}
       </div>
 

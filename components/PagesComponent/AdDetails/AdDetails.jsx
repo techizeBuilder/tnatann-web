@@ -3,6 +3,7 @@ import { useEffect, useMemo, useState } from "react";
 import { allItemApi, getBannerAdsApi, getMyItemsApi, getMyReelsApi, getReelsApi, setItemTotalClickApi } from "@/utils/api";
 import AdFeature from "./AdFeature";
 import AdDescription from "./AdDescription";
+import RelatedSearches from "./RelatedSearches";
 import AdDetailCard from "./AdDetailCard";
 import SellerDetailCard from "./SellerDetailCard";
 import AdLocation from "./AdLocation";
@@ -230,13 +231,6 @@ const AdDetails = ({ slug, langCode }) => {
                     <AdFeature filteredFields={filteredFields} />
                   )}
                   <AdDescription productDetails={productDetails} />
-                  <AdLocation productDetails={productDetails} />
-                  {!isMyListing && !productDetails?.is_already_reported && (
-                    <AdsReportCard
-                      productDetails={productDetails}
-                      setProductDetails={setProductDetails}
-                    />
-                  )}
                 </div>
               </div>
               <div className="flex flex-col col-span-1 lg:col-span-4 gap-7">
@@ -251,6 +245,14 @@ const AdDetails = ({ slug, langCode }) => {
 
                 {!isMyListing && (
                   <SellerDetailCard
+                    productDetails={productDetails}
+                    setProductDetails={setProductDetails}
+                  />
+                )}
+
+                <AdLocation productDetails={productDetails} />
+                {!isMyListing && !productDetails?.is_already_reported && (
+                  <AdsReportCard
                     productDetails={productDetails}
                     setProductDetails={setProductDetails}
                   />
@@ -291,6 +293,12 @@ const AdDetails = ({ slug, langCode }) => {
                 belowBanners={bannerMap["similar_ads_below"]}
               />
             )}
+            <div className="mt-6">
+              <RelatedSearches
+                productDetails={productDetails}
+                filteredFields={filteredFields}
+              />
+            </div>
             <AdUnit type='banner' className="mt-8" />
             <OpenInAppDrawer
               isOpenInApp={isOpenInApp}

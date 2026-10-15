@@ -2,6 +2,7 @@ import { useState } from "react";
 import { Badge } from "@/components/ui/badge";
 import { useSelector } from "react-redux";
 import { extractYear, getDefaultCountryCode, t } from "@/utils";
+import { cn } from "@/lib/utils";
 import CustomLink from "@/components/Common/CustomLink";
 import { itemOfferApi, chatListApi } from "@/utils/api";
 import { toast } from "sonner";
@@ -11,8 +12,9 @@ import { setIsLoginOpen } from "@/redux/reducer/globalStateSlice";
 import ApplyJobModal from "./ApplyJobModal";
 import CustomImage from "@/components/Common/CustomImage";
 import Link from "next/link";
+import SafeDealTipsDialog from "@/components/Common/SafeDealTipsDialog";
 import { useNavigate } from "@/components/Hooks/useNavigate";
-import { ArrowRightIcon, ChatTeardropDotsIcon, GiftIcon, PaperPlaneTiltIcon, PhoneCallIcon, ShieldCheckIcon, StarIcon } from "@phosphor-icons/react";
+import { ArrowRightIcon, ChatTeardropDotsIcon, CrownIcon, GiftIcon, PaperPlaneTiltIcon, PhoneCallIcon, ShieldCheckIcon, StarIcon } from "@phosphor-icons/react";
 
 const SellerDetailCard = ({ productDetails, setProductDetails }) => {
   const { navigate } = useNavigate();
@@ -26,6 +28,8 @@ const SellerDetailCard = ({ productDetails, setProductDetails }) => {
   const [IsOfferModalOpen, setIsOfferModalOpen] = useState(false);
   const [showApplyModal, setShowApplyModal] = useState(false);
   const [showNumber, setShowNumber] = useState(false);
+  const [showSafeDealTips, setShowSafeDealTips] = useState(false);
+  const [pendingCallAction, setPendingCallAction] = useState(null);
 
   const isAllowedToMakeOffer =
     productDetails?.price > 0 &&
@@ -88,6 +92,31 @@ const SellerDetailCard = ({ productDetails, setProductDetails }) => {
     setShowApplyModal(true);
   };
 
+  const handleMobileCallClick = (e) => {
+    e.preventDefault();
+    setPendingCallAction("dial");
+    setShowSafeDealTips(true);
+  };
+
+  const handleShowNumberClick = () => {
+    if (showNumber) {
+      setShowNumber(false);
+      return;
+    }
+    setPendingCallAction("reveal");
+    setShowSafeDealTips(true);
+  };
+
+  const handleContinueToCall = () => {
+    setShowSafeDealTips(false);
+    if (pendingCallAction === "dial") {
+      window.location.href = `tel:${mobile}`;
+    } else if (pendingCallAction === "reveal") {
+      setShowNumber(true);
+    }
+    setPendingCallAction(null);
+  };
+
 
   const contactNumber = productDetails?.contact;
 
@@ -99,17 +128,28 @@ const SellerDetailCard = ({ productDetails, setProductDetails }) => {
   return (
     <>
       <div className="flex items-center rounded-lg border flex-col">
-        {(userData?.is_verified == 1 || memberSinceYear) && (
+        {(userData?.is_verified == 1 || memberSinceYear || productDetails?.is_elite) && (
           <div className="p-4 flex justify-between items-center w-full">
-            {productDetails?.user?.is_verified == 1 && (
-              <Badge
-                variant="outline"
-                className="p-1 bg-[#FA6E53] flex items-center gap-1 rounded-md text-white text-sm"
-              >
-                <ShieldCheckIcon size={20} weight="fill" />
-                {t("verified")}
-              </Badge>
-            )}
+            <div className="flex items-center gap-2">
+              {productDetails?.is_elite && (
+                <Badge
+                  variant="outline"
+                  className="p-1 bg-blue-900 flex items-center gap-1 rounded-md text-white text-sm"
+                >
+                  <CrownIcon size={16} weight="fill" />
+                  {t("elite")}
+                </Badge>
+              )}
+              {productDetails?.user?.is_verified == 1 && (
+                <Badge
+                  variant="outline"
+                  className="p-1 bg-[#FA6E53] flex items-center gap-1 rounded-md text-white text-sm"
+                >
+                  <ShieldCheckIcon size={20} weight="fill" />
+                  {t("verified")}
+                </Badge>
+              )}
+            </div>
             {memberSinceYear && (
               <p className="ltr:ml-auto rtl:mr-auto text-sm text-muted-foreground">
                 {t("memberSince")}: {memberSinceYear}
@@ -182,22 +222,52 @@ const SellerDetailCard = ({ productDetails, setProductDetails }) => {
           {mobile && (
             <>
               {/* 📱 MOBILE VIEW: Shows "Call" label and redirects immediately */}
-              <Link
-                href={`tel:${mobile}`}
-                className="lg:hidden bg-black text-white p-4 rounded-md flex items-center gap-2 text-base font-medium justify-center whitespace-nowrap flex-[1_1_47%]"
-              >
-                <PhoneCallIcon size={21} />
-                <span>{t("call")}</span>
-              </Link>
+              <div className="relative lg:hidden flex-[1_1_47%]">
+                {productDetails?.is_elite && (
+                  <span className="absolute -top-2.5 left-1/2 -translate-x-1/2 z-10 flex items-center gap-0.5 rounded-full bg-blue-900 px-2 py-0.5 text-[9px] font-bold text-white whitespace-nowrap">
+                    <CrownIcon size={10} weight="fill" /> {t("elite")}
+                  </span>
+                )}
+                <button
+                  onClick={handleMobileCallClick}
+                  className={cn(
+                    "w-full p-4 rounded-md flex items-center gap-2 text-base font-medium justify-center whitespace-nowrap",
+                    productDetails?.is_elite
+                      ? "border-2 border-amber-400 bg-gradient-to-br from-amber-50 via-amber-100 to-amber-50 text-blue-900 font-semibold"
+                      : "bg-black text-white"
+                  )}
+                >
+                  <PhoneCallIcon size={21} />
+                  <span>{productDetails?.is_elite ? t("callSeller") : t("call")}</span>
+                </button>
+              </div>
 
               {/* 💻 DESKTOP VIEW: Toggle Button to reveal/hide number */}
-              <button
-                onClick={() => setShowNumber(prev => !prev)}
-                className="hidden lg:flex bg-black text-white p-4 rounded-md items-center gap-2 text-base font-medium justify-center whitespace-nowrap flex-[1_1_47%]"
-              >
-                <PhoneCallIcon size={21} />
-                <span>{showNumber ? mobile : t("showMobileNumber")}</span>
-              </button>
+              <div className="relative hidden lg:block flex-[1_1_47%]">
+                {productDetails?.is_elite && (
+                  <span className="absolute -top-2.5 left-1/2 -translate-x-1/2 z-10 flex items-center gap-0.5 rounded-full bg-blue-900 px-2 py-0.5 text-[9px] font-bold text-white whitespace-nowrap">
+                    <CrownIcon size={10} weight="fill" /> {t("elite")}
+                  </span>
+                )}
+                <button
+                  onClick={handleShowNumberClick}
+                  className={cn(
+                    "w-full p-4 rounded-md flex items-center gap-2 text-base font-medium justify-center whitespace-nowrap",
+                    productDetails?.is_elite
+                      ? "border-2 border-amber-400 bg-gradient-to-br from-amber-50 via-amber-100 to-amber-50 text-blue-900 font-semibold"
+                      : "bg-black text-white"
+                  )}
+                >
+                  <PhoneCallIcon size={21} />
+                  <span>
+                    {showNumber
+                      ? mobile
+                      : productDetails?.is_elite
+                        ? t("callSeller")
+                        : t("showMobileNumber")}
+                  </span>
+                </button>
+              </div>
             </>
           )}
 
@@ -236,6 +306,11 @@ const SellerDetailCard = ({ productDetails, setProductDetails }) => {
         setShowApplyModal={setShowApplyModal}
         item_id={item_id}
         setProductDetails={setProductDetails}
+      />
+      <SafeDealTipsDialog
+        open={showSafeDealTips}
+        onOpenChange={setShowSafeDealTips}
+        onContinue={handleContinueToCall}
       />
     </>
   );

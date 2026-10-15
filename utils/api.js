@@ -281,11 +281,12 @@ export const allItemApi = {
 // PACKAGE API
 
 export const getPackageApi = {
-  getPackage: ({ type, category_id } = {}) => {
+  getPackage: ({ type, category_id, city } = {}) => {
     return Api.get(GET_PACKAGE, {
       params: {
         type,
         category_id,
+        city,
       },
     });
   },
@@ -653,6 +654,7 @@ export const createFeaturedItemApi = {
     });
   },
 };
+
 // getPackageSettingsApi
 export const getPaymentSettingsApi = {
   getPaymentSettings: () => {

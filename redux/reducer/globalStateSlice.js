@@ -8,6 +8,7 @@ const initialState = {
   Notification: null,
   IsUnauthorized: false,
   IsFetchingLanguage: false,
+  IsSafeDealTipsModalOpen: false,
 };
 
 export const globalStateSlice = createSlice({
@@ -31,6 +32,9 @@ export const globalStateSlice = createSlice({
     },
     setIsFetchingLanguage: (state, action) => {
       state.IsFetchingLanguage = action.payload;
+    },
+    setIsSafeDealTipsModalOpen: (state, action) => {
+      state.IsSafeDealTipsModalOpen = action.payload;
     }
   },
 });
@@ -43,6 +47,7 @@ export const {
   setNotification,
   setIsUnauthorized,
   setIsFetchingLanguage,
+  setIsSafeDealTipsModalOpen,
 } = globalStateSlice.actions;
 
 export const getIsVisitedLandingPage = createSelector(
@@ -86,5 +91,14 @@ export const getIsFetchingLanguage = createSelector(
   (state) => state.GlobalState,
   (GlobalState) => GlobalState.IsFetchingLanguage
 );
+
+export const getIsSafeDealTipsModalOpen = createSelector(
+  (state) => state.GlobalState,
+  (GlobalState) => GlobalState.IsSafeDealTipsModalOpen
+);
+
+export const openSafeDealTipsModal = () => {
+  store.dispatch(setIsSafeDealTipsModalOpen(true));
+};
 
 

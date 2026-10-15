@@ -1,5 +1,6 @@
-import { t, timeAgo } from "@/utils";
-import { manageFavouriteApi } from "@/utils/api";
+import { useState } from "react";
+import { getDefaultCountryCode, t, timeAgo } from "@/utils";
+import { chatListApi, itemOfferApi, manageFavouriteApi } from "@/utils/api";
 import { useSelector } from "react-redux";
 import { userSignUpData } from "@/redux/reducer/authSlice";
 import { CurrentLanguageData } from "@/redux/reducer/languageSlice";
@@ -7,17 +8,20 @@ import CustomLink from "@/components/Common/CustomLink";
 import { toast } from "sonner";
 import { setIsLoginOpen } from "@/redux/reducer/globalStateSlice";
 import CustomImage from "./CustomImage";
-import { HeartIcon, SealCheckIcon } from "@phosphor-icons/react";
+import { useNavigate } from "@/components/Hooks/useNavigate";
+import { ChatTeardropDotsIcon, CrownIcon, HeartIcon, PhoneCallIcon, SealCheckIcon } from "@phosphor-icons/react";
 import { useDebouncedToggle } from "@/components/Hooks/useDebouncedToggle";
 
 const AdCard = ({ item, handleLike }) => {
   const userData = useSelector(userSignUpData);
+  const { navigate } = useNavigate();
   const { country_code, code } = useSelector(CurrentLanguageData);
   const locale = country_code
     ? `${code}-${country_code}`
     : code ?? "en";
   const isJobCategory = Number(item?.category?.is_job_category) === 1;
   const translated_item = item.translated_item;
+  const [isStartingChat, setIsStartingChat] = useState(false);
 
   const isHidePrice = isJobCategory
     ? !item?.formatted_salary_range
@@ -27,10 +31,16 @@ const AdCard = ({ item, handleLike }) => {
     ? item?.formatted_salary_range
     : item?.formatted_price;
 
-  const productLink =
-    userData?.id === item?.user_id
-      ? `/my-listing/${item?.slug}`
-      : `/ad-details/${item.slug}`;
+  const isOwnListing = userData?.id === item?.user_id;
+
+  const productLink = isOwnListing
+    ? `/my-listing/${item?.slug}`
+    : `/ad-details/${item.slug}`;
+
+  const regionCode = item?.region_code?.toUpperCase();
+  const countryCode = getDefaultCountryCode(regionCode) || "";
+  const prefix = countryCode ? `+${countryCode}` : "";
+  const mobile = item?.contact ? `${prefix}${item.contact}` : null;
 
   const toggleLike = useDebouncedToggle();
 
@@ -50,6 +60,53 @@ const AdCard = ({ item, handleLike }) => {
     );
   };
 
+  const handleCardChat = async (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    if (!userData) {
+      setIsLoginOpen(true);
+      return;
+    }
+    try {
+      setIsStartingChat(true);
+      if (item?.is_already_offered) {
+        const item_offer_id = item?.item_offers?.[0]?.id;
+        const response = await chatListApi.chatList({ type: "buyer", item_offer_id });
+        if (response?.data?.error === false) {
+          const chatId = response?.data?.data?.data[0]?.id;
+          const adId = response?.data?.data?.data[0]?.item?.id;
+          navigate("/chat?activeTab=buying&chatid=" + chatId + "&chat_ad_id=" + adId);
+        } else {
+          toast.error(response?.data?.message);
+        }
+      } else {
+        const response = await itemOfferApi.offer({ item_id: item?.id });
+        if (response?.data?.error === false) {
+          const { data } = response.data;
+          navigate("/chat?activeTab=buying&chatid=" + data?.id + "&chat_ad_id=" + item?.id);
+        } else {
+          toast.error(response?.data?.message);
+        }
+      }
+    } catch (error) {
+      toast.error(t("unableToStartChat"));
+    } finally {
+      setIsStartingChat(false);
+    }
+  };
+
+  const handleCardCall = (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    if (!userData) {
+      setIsLoginOpen(true);
+      return;
+    }
+    if (mobile) {
+      window.location.href = `tel:${mobile}`;
+    }
+  };
+
   return (
     <CustomLink
       href={productLink}
@@ -63,12 +120,17 @@ const AdCard = ({ item, handleLike }) => {
           className="w-full aspect-square rounded object-cover"
           alt={translated_item?.name || "Product"}
         />
-        {item?.is_feature && (
+        {item?.is_elite ? (
+          <div className="flex items-center gap-1 ltr:rounded-tl rtl:rounded-tr py-0.5 px-1 bg-amber-500 absolute top-0 ltr:left-0 rtl:right-0">
+            <CrownIcon size={16} color="white" weight="fill" />
+            <p className="text-white text-xs sm:text-sm">{t("elite")}</p>
+          </div>
+        ) : item?.is_feature ? (
           <div className="flex items-center gap-1 ltr:rounded-tl rtl:rounded-tr py-0.5 px-1 bg-primary absolute top-0 ltr:left-0 rtl:right-0">
             <SealCheckIcon size={16} color="white" weight="bold" />
             <p className="text-white text-xs sm:text-sm">{t("featured")}</p>
           </div>
-        )}
+        ) : null}
 
         <div
           onClick={handleLikeItem}
@@ -78,6 +140,28 @@ const AdCard = ({ item, handleLike }) => {
             <HeartIcon size={24} weight={item?.is_liked ? 'fill' : 'regular'} />
           </button>
         </div>
+
+        {item?.is_elite && !isOwnListing && (
+          <div className="absolute bottom-2 ltr:right-2 rtl:left-2 flex items-center gap-1.5">
+            <button
+              onClick={handleCardChat}
+              disabled={isStartingChat}
+              aria-label={t("startChat")}
+              className="size-7 sm:size-8 rounded-full bg-blue-900 text-white flex items-center justify-center shadow"
+            >
+              <ChatTeardropDotsIcon size={16} weight="fill" />
+            </button>
+            {mobile && (
+              <button
+                onClick={handleCardCall}
+                aria-label={t("call")}
+                className="size-7 sm:size-8 rounded-full bg-blue-900 text-white flex items-center justify-center shadow"
+              >
+                <PhoneCallIcon size={16} weight="fill" />
+              </button>
+            )}
+          </div>
+        )}
       </div>
 
       <div className="space-between gap-2">

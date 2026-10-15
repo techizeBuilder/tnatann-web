@@ -1,145 +1,191 @@
+import { useEffect, useState } from "react";
 import PhoneInput from "react-phone-input-2";
 import { Label } from "../ui/label";
 import { Button } from "../ui/button";
 import useAutoFocus from "../Hooks/useAutoFocus";
 import { isValidPhoneNumber } from "libphonenumber-js/max";
 import { toast } from "sonner";
-import { t } from "@/utils";
-import { Input } from "../ui/input";
-import { useState } from "react";
-import { getUserExistsApi, userSignUpApi } from "@/utils/api";
-import { Fcmtoken } from "@/redux/reducer/settingSlice";
+import { handleFirebaseAuthError, t } from "@/utils";
+import {
+  getAuth,
+  RecaptchaVerifier,
+  signInWithPhoneNumber,
+} from "firebase/auth";
+import { getOtpApi } from "@/utils/api";
 import { useSelector } from "react-redux";
-import { loadUpdateData } from "@/redux/reducer/authSlice";
+import { getOtpServiceProvider } from "@/redux/reducer/settingSlice";
 import { cn } from "@/lib/utils";
-import { CircleNotchIcon, EyeIcon, EyeSlashIcon } from "@phosphor-icons/react";
+import { CircleNotchIcon } from "@phosphor-icons/react";
+import OtpScreen from "./OtpScreen";
 
 const LoginWithMobileForm = ({
-  loginStates,
-  setLoginStates,
-  formattedNumber,
-  onForgotPassword,
   OnHide,
-  setForgotPasswordLoading,
-  forgotPasswordLoading,
-  isLoadingWithGoogle,
+  setDescriptionState,
+  isOTPScreen,
+  setIsOTPScreen,
   showLoader,
-  setShowLoader
+  setShowLoader,
 }) => {
-  const numberInputRef = useAutoFocus();
-  const { number, countryCode } = loginStates;
-  const [isPasswordVisible, setIsPasswordVisible] = useState(false);
-  const fcm_id = useSelector(Fcmtoken);
-  const [errors, setErrors] = useState({ phone: "", password: "" });
+  const auth = getAuth();
+  const otp_service_provider = useSelector(getOtpServiceProvider);
+  const phoneInputRef = useAutoFocus();
 
-  const handleInputChange = (value, data) => {
-    setLoginStates((prev) => ({
-      ...prev,
-      number: value,
-      countryCode: "+" + (data?.dialCode || ""),
-      regionCode: data?.countryCode.toLowerCase() || "",
-    }));
-    setErrors((prev) => ({ ...prev, phone: "" }));
-  };
+  const [number, setNumber] = useState("");
+  const [countryCode, setCountryCode] = useState("");
+  const [regionCode, setRegionCode] = useState("");
+  const [confirmationResult, setConfirmationResult] = useState(null);
+  const [resendTimer, setResendTimer] = useState(0);
+  const [errors, setErrors] = useState({ phone: "" });
 
-  const handleCountryChange = (code) => {
-    setLoginStates((prev) => ({
-      ...prev,
-      countryCode: code,
-    }));
-  };
+  const countryCodeDigitsOnly = countryCode.replace(/\D/g, "");
+  const startsWithCountryCode = number.startsWith(countryCodeDigitsOnly);
+  const formattedNumber = startsWithCountryCode
+    ? number.substring(countryCodeDigitsOnly.length)
+    : number;
 
-  const validateForm = () => {
-    let isValid = true;
-    const newErrors = { phone: "", password: "" };
-
-    if (!formattedNumber) {
-      newErrors.phone = t("pleaseEnterMobileNumber");
-      isValid = false;
-    } else if (!isValidPhoneNumber(`${countryCode}${formattedNumber}`)) {
-      newErrors.phone = t("invalidPhoneNumber");
-      isValid = false;
+  const generateRecaptcha = async () => {
+    if (window.recaptchaVerifier && !window.recaptchaVerifier.destroyed) {
+      return window.recaptchaVerifier;
     }
-
-    if (!loginStates.password.trim()) {
-      newErrors.password = t("passwordRequired");
-      isValid = false;
+    const recaptchaContainer = document.getElementById("recaptcha-container");
+    if (!recaptchaContainer) {
+      console.error("Container element 'recaptcha-container' not found.");
+      return null;
     }
-
-    setErrors(newErrors);
-    return isValid;
-  };
-
-  const handleLoginWithMobile = async (e) => {
-    e.preventDefault();
-    if (!validateForm()) return;
+    recaptchaContainer.innerHTML = "";
+    window.recaptchaVerifier = undefined;
     try {
-      setShowLoader(true);
-      const params = {
-        mobile: formattedNumber,
-        password: loginStates.password,
+      window.recaptchaVerifier = new RecaptchaVerifier(
+        auth,
+        recaptchaContainer,
+        { size: "invisible" }
+      );
+      return window.recaptchaVerifier;
+    } catch (error) {
+      console.error("Error initializing RecaptchaVerifier:", error.message);
+      return null;
+    }
+  };
+
+  useEffect(() => {
+    return () => {
+      recaptchaClear();
+    };
+  }, []);
+
+  const recaptchaClear = async () => {
+    if (window.recaptchaVerifier && !window.recaptchaVerifier.destroyed) {
+      try {
+        await window.recaptchaVerifier.clear();
+      } catch (error) {
+        // Ignore errors - verifier might already be cleared
+      }
+    }
+    window.recaptchaVerifier = undefined;
+    const recaptchaContainer = document.getElementById("recaptcha-container");
+    if (recaptchaContainer) {
+      recaptchaContainer.innerHTML = "";
+    }
+  };
+
+  const sendOtpWithTwillio = async (PhoneNumber) => {
+    try {
+      const response = await getOtpApi.getOtp({
+        number: formattedNumber,
         country_code: countryCode,
-        type: "phone",
-        fcm_id: fcm_id ? fcm_id : "",
-        is_login: 1,
-      };
-      const response = await userSignUpApi.userSignup(params);
+      });
       if (response?.data?.error === false) {
-        toast.success(response?.data?.message);
-        loadUpdateData(response?.data);
-        OnHide();
+        toast.success(t("otpSentSuccess"));
+        setIsOTPScreen(true);
+        setResendTimer(60);
+        setDescriptionState({ type: "otp", phoneNumber: PhoneNumber });
       } else {
-        toast.error(response?.data?.message);
+        toast.error(t("failedToSendOtp"));
       }
     } catch (error) {
-      console.log(error);
+      console.error("error", error);
     } finally {
       setShowLoader(false);
     }
   };
 
-  const checkIfUserExistsOrNot = async () => {
+  const sendOtpWithFirebase = async (PhoneNumber) => {
     try {
-      const res = await getUserExistsApi.getUserExists({
-        mobile: formattedNumber,
-        country_code: countryCode,
-        forgot_password: 1
-      });
-      if (res?.data?.error === false) {
-        return true;
-      } else {
-        toast.error(res?.data?.message);
-        return false;
-      }
+      const appVerifier = await generateRecaptcha();
+      const confirmation = await signInWithPhoneNumber(
+        auth,
+        PhoneNumber,
+        appVerifier
+      );
+      setConfirmationResult(confirmation);
+      toast.success(t("otpSentSuccess"));
+      setIsOTPScreen(true);
+      setResendTimer(60);
+      setDescriptionState({ type: "otp", phoneNumber: PhoneNumber });
     } catch (error) {
       console.log(error);
+      handleFirebaseAuthError(error.code);
+    } finally {
+      setShowLoader(false);
+    }
+  };
+
+  const handleInputChange = (value, data) => {
+    setNumber(value);
+    setCountryCode("+" + (data?.dialCode || ""));
+    setRegionCode(data?.countryCode.toLowerCase() || "");
+    setErrors((prev) => ({ ...prev, phone: "" }));
+  };
+
+  const handleCountryChange = (code) => {
+    setCountryCode(code);
+  };
+
+  const validateForm = () => {
+    if (!formattedNumber) {
+      setErrors({ phone: t("pleaseEnterMobileNumber") });
       return false;
     }
-  };
-
-  const handleForgotPasswordClick = async () => {
-    if (!formattedNumber) {
-      setErrors((prev) => ({ ...prev, phone: t("pleaseEnterMobileNumber") }));
-      return;
-    }
-
     if (!isValidPhoneNumber(`${countryCode}${formattedNumber}`)) {
-      setErrors((prev) => ({ ...prev, phone: t("invalidPhoneNumber") }));
-      return;
+      setErrors({ phone: t("invalidPhoneNumber") });
+      return false;
     }
-
-    setForgotPasswordLoading(true);
-    const isUserExists = await checkIfUserExistsOrNot();
-    if (!isUserExists) {
-      setForgotPasswordLoading(false);
-      return;
-    }
-    await onForgotPassword();
-    setForgotPasswordLoading(false);
+    setErrors({ phone: "" });
+    return true;
   };
+
+  const handleMobileSubmit = async (e) => {
+    e.preventDefault();
+    if (!validateForm()) return;
+
+    const PhoneNumber = `${countryCode}${formattedNumber}`;
+    setShowLoader(true);
+    if (otp_service_provider === "twilio" || otp_service_provider === "2factor") {
+      await sendOtpWithTwillio(PhoneNumber);
+    } else {
+      await sendOtpWithFirebase(PhoneNumber);
+    }
+  };
+
+  if (isOTPScreen) {
+    return (
+      <OtpScreen
+        OnHide={OnHide}
+        generateRecaptcha={generateRecaptcha}
+        countryCode={countryCode}
+        formattedNumber={formattedNumber}
+        confirmationResult={confirmationResult}
+        setConfirmationResult={setConfirmationResult}
+        setResendTimer={setResendTimer}
+        resendTimer={resendTimer}
+        regionCode={regionCode}
+        key="login-otp"
+      />
+    );
+  }
 
   return (
-    <form className="flex flex-col gap-6" onSubmit={handleLoginWithMobile}>
+    <form className="flex flex-col gap-6" onSubmit={handleMobileSubmit}>
       <div className="labelInputCont">
         <Label className="font-semibold requiredInputLabel">
           {t("mobileNumber")}
@@ -151,7 +197,7 @@ const LoginWithMobileForm = ({
           onCountryChange={handleCountryChange}
           inputProps={{
             name: "phone",
-            ref: numberInputRef,
+            ref: phoneInputRef,
           }}
           enableLongNumbers
           containerClass={cn("border border-border rounded-md focus-within:ring-2 focus-within:ring-offset-2 focus-within:ring-primary", errors.phone && "border-destructive focus-within:ring-destructive")}
@@ -162,59 +208,13 @@ const LoginWithMobileForm = ({
           <span className="text-destructive text-sm">{errors.phone}</span>
         )}
       </div>
-      <div className="labelInputCont">
-        <Label className="requiredInputLabel">{t("password")}</Label>
-        <div className="flex items-center relative">
-          <Input
-            type={isPasswordVisible ? "text" : "password"}
-            placeholder={t("enterPassword")}
-            className={cn("ltr:pr-9 rtl:pl-9", errors.password && "border-destructive focus-visible:ring-destructive")}
-            value={loginStates.password}
-            onChange={(e) => {
-              setLoginStates((prev) => ({ ...prev, password: e.target.value }));
-              setErrors((prev) => ({ ...prev, password: "" }));
-            }}
-          />
-          <button
-            type="button"
-            className="absolute ltr:right-3 rtl:left-3 cursor-pointer"
-            onClick={() => setIsPasswordVisible((prev) => !prev)}
-          >
-            {isPasswordVisible ? (
-              <EyeIcon size={20} />
-            ) : (
-              <EyeSlashIcon size={20} />
-            )}
-          </button>
-        </div>
-        {errors.password && (
-          <span className="text-destructive text-sm">{errors.password}</span>
-        )}
-        <button
-          className="text-right font-semibold text-primary w-fit self-end"
-          onClick={handleForgotPasswordClick}
-          type="button"
-          disabled={forgotPasswordLoading || showLoader || isLoadingWithGoogle}
-        >
-          {forgotPasswordLoading ? (
-            <>
-              <span className="flex items-center gap-2 justify-end">
-                <CircleNotchIcon className="size-4 animate-spin" weight="bold" />
-                <span>{t("loading")}</span>
-              </span>
-            </>
-          ) : (
-            t("forgtPassword")
-          )}
-        </button>
-      </div>
       <Button
         type="submit"
-        disabled={showLoader || forgotPasswordLoading || isLoadingWithGoogle}
+        disabled={showLoader}
         className="text-xl text-white font-light px-4 py-2"
         size="big"
       >
-        {showLoader ? <CircleNotchIcon className="size-6! animate-spin" weight="bold" /> : t("login")}
+        {showLoader ? <CircleNotchIcon className="size-6! animate-spin" weight="bold" /> : t("continue")}
       </Button>
     </form>
   );

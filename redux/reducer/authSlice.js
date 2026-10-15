@@ -1,5 +1,6 @@
 import { createSelector, createSlice } from "@reduxjs/toolkit";
 import { store } from "../store";  // Ensure this import path is correct
+import { openSafeDealTipsModal } from "./globalStateSlice";
 
 const initialState = {
     data: null,
@@ -36,6 +37,7 @@ export default authSlice.reducer;
 
 export const loadUpdateData = (data) => {
     store.dispatch(updateDataSuccess(data));
+    openSafeDealTipsModal();
 };
 export const loadUpdateUserData = (data) => {
     store.dispatch(userUpdateData({ data }));

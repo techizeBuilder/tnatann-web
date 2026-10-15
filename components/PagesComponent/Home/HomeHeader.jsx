@@ -1,5 +1,4 @@
 "use client";
-import LanguageDropdown from "@/components/Common/LanguageDropdown";
 import {
   getIsFreAdListing,
   getOtpServiceProvider,
@@ -29,8 +28,9 @@ import ReusableAlertDialog from "@/components/Common/ReusableAlertDialog";
 import { deleteUserApi, logoutApi } from "@/utils/api.js";
 import { useMediaQuery } from "usehooks-ts";
 import UnauthorizedModal from "@/components/Auth/UnauthorizedModal.jsx";
+import SafeDealTipsModal from "@/components/Auth/SafeDealTipsModal.jsx";
 import CustomImage from "@/components/Common/CustomImage.jsx";
-import { CaretRightIcon, CircleNotchIcon, MapPinIcon, PlusCircleIcon, UserIcon, UserPlusIcon } from "@phosphor-icons/react";
+import { BellIcon, CaretRightIcon, ChatsIcon, CircleNotchIcon, HeartIcon, MapPinIcon, PlusIcon, UserIcon } from "@phosphor-icons/react";
 import { useNavigate } from "@/components/Hooks/useNavigate.jsx";
 import { useParams, usePathname } from "next/navigation.js";
 import { Skeleton } from "@/components/ui/skeleton.jsx";
@@ -235,8 +235,8 @@ const HomeHeader = () => {
   return (
     <>
       <header className="py-5 border-b">
-        <nav className="container">
-          <div className="space-between gap-3">
+        <nav className="w-full px-4 lg:px-8">
+          <div className="space-between gap-3 lg:gap-5">
             <CustomLink href="/" className="shrink-0">
               <CustomImage
                 src={settings?.header_logo}
@@ -248,56 +248,74 @@ const HomeHeader = () => {
               />
             </CustomLink>
 
-            <button
-              className="hidden lg:flex items-center gap-2 shrink-0 border rounded-full py-2 ltr:pl-3 ltr:pr-2 rtl:pr-3 rtl:pl-2"
-              onClick={() => setIsLocationModalOpen(true)}
-            >
-              <MapPinIcon
-                size={16}
-                className="shrink-0"
-                title={locationText ? locationText : t("addLocation")} />
-              <p
-                className="hidden xl:block text-sm"
-                title={locationText ? locationText : t("addLocation")}
-              >
-                {locationText
-                  ? truncate(locationText, 12)
-                  : truncate(t("addLocation"), 12)}
-              </p>
-              <CaretRightIcon size={14} className="shrink-0 text-muted-foreground rtl:rotate-180" />
-            </button>
-
-            {/* desktop category search select */}
+            {/* desktop location + search */}
 
             {isLargeScreen && (
               <div className="flex flex-1 items-center border leading-none rounded-full">
+                <button
+                  className="flex items-center gap-2 shrink-0 py-1.5 ltr:pl-3 ltr:pr-2 rtl:pr-3 rtl:pl-2"
+                  onClick={() => setIsLocationModalOpen(true)}
+                >
+                  <MapPinIcon
+                    size={16}
+                    className="shrink-0"
+                    title={locationText ? locationText : t("addLocation")} />
+                  <p
+                    className="hidden xl:block text-sm"
+                    title={locationText ? locationText : t("addLocation")}
+                  >
+                    {locationText
+                      ? truncate(locationText, 12)
+                      : truncate(t("addLocation"), 12)}
+                  </p>
+                  <CaretRightIcon size={14} className="shrink-0 text-muted-foreground rtl:rotate-180" />
+                </button>
+                <div className="h-6 w-px bg-border shrink-0" />
                 <Search />
               </div>
             )}
 
-            <div className="hidden lg:flex items-center gap-3 shrink-0">
+            <div className="hidden lg:flex items-center gap-5 xl:gap-6 shrink-0">
               {IsLoggedin ? (
-                <ProfileDropdown
-                  setIsLogout={setIsLogout}
-                  IsLogout={IsLogout}
-                />
+                <>
+                  <button
+                    className="flex flex-col items-center gap-0.5 text-xs"
+                    onClick={() => navigate("/favorites")}
+                    title={t("favorites")}
+                  >
+                    <HeartIcon size={18} weight="bold" />
+                    {truncate(t("favorites"), 12)}
+                  </button>
+                  <button
+                    className="flex flex-col items-center gap-0.5 text-xs"
+                    onClick={() => navigate("/chat")}
+                    title={t("chat")}
+                  >
+                    <ChatsIcon size={18} weight="bold" />
+                    {truncate(t("chat"), 12)}
+                  </button>
+                  <ProfileDropdown
+                    setIsLogout={setIsLogout}
+                    IsLogout={IsLogout}
+                  />
+                </>
               ) : (
                 <>
                   <button
                     className="flex flex-col items-center gap-0.5 text-xs"
                     onClick={() => setIsLoginOpen(true)}
-                    title={t("login")}
+                    title={t("favorites")}
                   >
-                    <UserIcon size={18} />
-                    {truncate(t("login"), 12)}
+                    <HeartIcon size={18} weight="bold" />
+                    {truncate(t("favorites"), 12)}
                   </button>
                   <button
                     className="flex flex-col items-center gap-0.5 text-xs"
-                    onClick={() => setIsRegisterModalOpen(true)}
-                    title={t("register")}
+                    onClick={() => setIsLoginOpen(true)}
+                    title={t("login")}
                   >
-                    <UserPlusIcon size={18} />
-                    {truncate(t("register"), 12)}
+                    <UserIcon size={18} weight="bold" />
+                    {truncate(t("login"), 12)}
                   </button>
                 </>
               )}
@@ -306,22 +324,29 @@ const HomeHeader = () => {
                 className="rounded-full p-px bg-[linear-gradient(to_right,#38bdf8,#22c55e,#facc15,#ec4899)] rtl:bg-[linear-gradient(to_left,#38bdf8,#22c55e,#facc15,#ec4899)]"
                 disabled={IsAdListingClicked}
                 onClick={handleAdListing}
-                title={t("adListing")}
+                title={t("sell")}
               >
-                <span className="flex items-center gap-1 bg-background rounded-full px-2 xl:px-4 py-2 font-medium">
+                <span className="flex items-center gap-1 bg-background rounded-full px-3 py-2 font-semibold">
                   {IsAdListingClicked ? (
                     <CircleNotchIcon size={18} className="animate-spin" weight="bold" />
                   ) : (
-                    <PlusCircleIcon size={18} weight="bold" />
+                    <PlusIcon size={18} weight="bold" />
                   )}
 
-                  <span className="hidden xl:inline">
-                    {truncate(t("adListing"), 12)}
+                  <span className="uppercase">
+                    {t("sell")}
                   </span>
                 </span>
               </button>
 
-              <LanguageDropdown />
+              {IsLoggedin && (
+                <button
+                  onClick={() => navigate("/notifications")}
+                  title={t("notification")}
+                >
+                  <BellIcon size={20} />
+                </button>
+              )}
             </div>
             <HomeMobileMenu
               setIsLocationModalOpen={setIsLocationModalOpen}
@@ -422,6 +447,7 @@ const HomeHeader = () => {
         setIsLocationModalOpen={setIsLocationModalOpen}
       />
       <UnauthorizedModal />
+      <SafeDealTipsModal />
       <PackageRequiredModal
         open={IsPackageRequired}
         onClose={() => setIsPackageRequired(false)}
